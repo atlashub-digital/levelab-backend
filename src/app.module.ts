@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
+import { InternalLiaModule } from './internal-lia/internal-lia.module';
 
 @Module({
   imports: [
@@ -8,6 +10,8 @@ import { HealthController } from './health/health.controller';
       isGlobal: true,
       cache: true,
     }),
+    DatabaseModule,
+    InternalLiaModule,
   ],
   controllers: [HealthController],
 })
