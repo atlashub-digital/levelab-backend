@@ -11,6 +11,6 @@ import { MembersService } from './members.service';
 @Module({
   controllers: [MeController, CatalogController, AdminController],
   providers: [MembersService, EntitlementsService, SupabaseJwtGuard, AdminGuard],
-  exports: [EntitlementsService],
+  exports: [EntitlementsService, MembersService],
 })
 export class AccessModule {}
