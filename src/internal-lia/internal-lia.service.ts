@@ -118,8 +118,8 @@ export class InternalLiaService {
       where: { memberId },
       update: data,
       create: {
-        memberId,
         ...(data as Prisma.WellnessProfileUncheckedCreateInput),
+        memberId,
       },
     });
   }
