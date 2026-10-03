@@ -27,21 +27,20 @@ export class EntitlementsService {
 
   grant(input: {
     memberId: string;
-    keys: EntitlementKey[];
+    grants: Array<{ key: EntitlementKey; endsAt?: Date }>;
     source: string;
     sourceRef?: string;
-    endsAt?: Date;
     note?: string;
   }) {
     return this.prisma.$transaction(
-      input.keys.map((key) =>
+      input.grants.map(({ key, endsAt }) =>
         this.prisma.entitlement.create({
           data: {
             memberId: input.memberId,
             key,
             source: input.source,
             sourceRef: input.sourceRef,
-            endsAt: input.endsAt,
+            endsAt,
             note: input.note,
           },
         }),

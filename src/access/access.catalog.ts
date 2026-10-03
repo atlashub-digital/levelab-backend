@@ -70,18 +70,24 @@ export function getAsset(id: string): ContentAsset | undefined {
   return CONTENT_ASSETS.find((asset) => asset.id === id);
 }
 
-/** Sellable offers -> keys they grant. A guide purchase includes LeveLab+ (LIA). */
-export const OFFERS: Record<string, { title: string; keys: EntitlementKey[] }> = {
+/** A key an offer grants; `days` limits it (no `days` = no end date). */
+export type OfferGrant = { key: EntitlementKey; days?: number };
+
+/**
+ * Sellable offers -> what they grant. A guide is owned for good and includes
+ * 30 days of LeveLab+ (LIA) — decision of 2026-10-03.
+ */
+export const OFFERS: Record<string, { title: string; grants: OfferGrant[] }> = {
   'guia-corpo-forte': {
     title: 'Corpo Forte (Guia + Workbook) + LeveLab+',
-    keys: ['content:corpo-forte', 'levelab-plus'],
+    grants: [{ key: 'content:corpo-forte' }, { key: 'levelab-plus', days: 30 }],
   },
   'guia-forca-na-caneta': {
     title: 'Força na Caneta + LeveLab+',
-    keys: ['content:forca-na-caneta', 'levelab-plus'],
+    grants: [{ key: 'content:forca-na-caneta' }, { key: 'levelab-plus', days: 30 }],
   },
   'levelab-premium': {
     title: 'LeveLab Premium (acesso completo)',
-    keys: ['premium'],
+    grants: [{ key: 'premium' }],
   },
 };

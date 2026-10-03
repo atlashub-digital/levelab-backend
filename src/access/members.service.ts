@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Member } from '@prisma/client';
+import { Prisma, type Member } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import type { AuthUser } from '../auth/supabase-jwt.guard';
 
@@ -12,6 +12,19 @@ export class MembersService {
    * same email (e.g. access granted before the first login) or creates one.
    */
   async forAuthUser(user: AuthUser): Promise<Member> {
+    try {
+      return await this.resolveAuthUser(user);
+    } catch (error) {
+      // Parallel first requests (e.g. /me and /me/library) can race to create
+      // the same member; the loser hits a unique constraint and re-reads.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return this.resolveAuthUser(user);
+      }
+      throw error;
+    }
+  }
+
+  private async resolveAuthUser(user: AuthUser): Promise<Member> {
     const linked = await this.prisma.member.findUnique({ where: { authUserId: user.id } });
     if (linked) return linked;
 
