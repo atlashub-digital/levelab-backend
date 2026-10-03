@@ -95,6 +95,74 @@ export class InternalLiaService {
     };
   }
 
+  /**
+   * Minimal, LIA-shaped context (LiaMemberContext in levelab-lia).
+   * Exposes only what LIA needs to personalise the conversation; raw check-ins
+   * and profile JSON stay in the backend.
+   */
+  async getLiaMemberContext(memberId: string) {
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      include: {
+        profile: true,
+        enrollments: {
+          where: { status: 'ACTIVE' },
+          include: { program: true },
+          orderBy: { updatedAt: 'desc' },
+          take: 3,
+        },
+      },
+    });
+
+    if (!member) throw new NotFoundException('Member not found.');
+
+    const asRecord = (value: Prisma.JsonValue | null | undefined) =>
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : {};
+    const asString = (value: unknown) =>
+      typeof value === 'string' && value.trim() ? value : undefined;
+
+    const corpoForte = member.enrollments.find(
+      (enrollment) => enrollment.program.slug === 'corpo-forte',
+    );
+    const cf = asRecord(corpoForte?.metadata);
+    const barriers = member.profile?.barriers;
+    const firstBarrier = Array.isArray(barriers) ? asString(barriers[0]) : undefined;
+
+    return {
+      memberId: member.id,
+      displayName: member.displayName ?? undefined,
+      locale: member.locale,
+      activePrograms: member.enrollments.map((enrollment) => ({
+        programId: enrollment.program.slug,
+        currentModuleId: asString(asRecord(enrollment.metadata).moduleId),
+      })),
+      ...(corpoForte
+        ? {
+            corpoForte: {
+              week:
+                typeof cf.week === 'number'
+                  ? cf.week
+                  : Math.min(8, Math.floor(corpoForte.currentDay / 7) + 1),
+              moduleId: asString(cf.moduleId),
+              goal: asString(cf.goal) ?? member.profile?.primaryGoal ?? undefined,
+              targetCapability: asString(cf.targetCapability),
+              mainBarrier: asString(cf.mainBarrier) ?? firstBarrier,
+              minimumViableAction: asString(cf.minimumViableAction),
+              selectedProgressSignals: Array.isArray(cf.selectedProgressSignals)
+                ? cf.selectedProgressSignals.filter(
+                    (signal): signal is string => typeof signal === 'string',
+                  )
+                : undefined,
+              currentCommitment: asString(cf.currentCommitment),
+              checkInPreference: asString(cf.checkInPreference),
+            },
+          }
+        : {}),
+    };
+  }
+
   async updateProfile(memberId: string, input: UpdateWellnessProfileDto) {
     await this.assertMember(memberId);
 
