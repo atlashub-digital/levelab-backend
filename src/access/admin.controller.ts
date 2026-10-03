@@ -72,16 +72,27 @@ export class AdminController {
 
   @Post('entitlements')
   async grant(@Body() body: GrantDto) {
-    const keys = body.keys ?? (body.offer ? OFFERS[body.offer].keys : undefined);
-    if (!keys?.length) throw new BadRequestException('Provide offer or keys.');
+    // An explicit endsAt applies to every key; otherwise each offer grant
+    // uses its own duration (e.g. LeveLab+ for 30 days with a guide).
+    const explicitEnd = body.endsAt ? new Date(body.endsAt) : undefined;
+    const now = Date.now();
+    const grants = body.keys
+      ? body.keys.map((key) => ({ key, endsAt: explicitEnd }))
+      : body.offer
+        ? OFFERS[body.offer].grants.map(({ key, days }) => ({
+            key,
+            endsAt: explicitEnd ?? (days ? new Date(now + days * 86_400_000) : undefined),
+          }))
+        : [];
+    if (!grants.length) throw new BadRequestException('Provide offer or keys.');
+    const keys = grants.map((grant) => grant.key);
 
     const member = await this.members.forEmail(body.email);
     const created = await this.entitlements.grant({
       memberId: member.id,
-      keys,
+      grants,
       source: body.source ?? 'manual',
       sourceRef: body.sourceRef ?? body.offer,
-      endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
       note: body.note,
     });
     await this.prisma.auditEvent.create({
@@ -93,7 +104,10 @@ export class AdminController {
         payload: { keys, offer: body.offer ?? null, endsAt: body.endsAt ?? null },
       },
     });
-    return { memberId: member.id, granted: created.map((e) => ({ id: e.id, key: e.key })) };
+    return {
+      memberId: member.id,
+      granted: created.map((e) => ({ id: e.id, key: e.key, endsAt: e.endsAt })),
+    };
   }
 
   @Post('entitlements/:id/revoke')
