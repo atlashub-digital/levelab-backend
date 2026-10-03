@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum MemberStatus {
+  LEAD
+  ACTIVE
+  PAUSED
+  CHURNED
+  ARCHIVED
+}
+
+enum ProgramEnrollmentStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+enum ProductType {
+  PHYSICAL
+  DIGITAL
+  EBOOK
+  COURSE
+  SERVICE
+  PROGRAM
+  SUBSCRIPTION
+}
+
+enum ContentStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+model Member {
+  id            String        @id @default(uuid())
+  email         String?       @unique
+  phoneE164     String?       @unique
+  displayName   String?
+  locale        String        @default("pt-BR")
+  country       String?       @db.VarChar(2)
+  timezone      String?
+  status        MemberStatus  @default(LEAD)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  profile       WellnessProfile?
+  consents      Consent[]
+  enrollments   ProgramEnrollment[]
+  checkins      DailyCheckin[]
+  subscriptions Subscription[]
+  orders        Order[]
+}
+
+model WellnessProfile {
+  id                    String   @id @default(uuid())
+  memberId              String   @unique
+  primaryGoal           String?
+  routineSummary        String?
+  movementLevel         String?
+  sleepPattern          String?
+  foodPreferences       Json?
+  barriers              Json?
+  communicationPrefs    Json?
+  onboardingCompletedAt DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+model Consent {
+  id         String   @id @default(uuid())
+  memberId   String
+  type       String
+  version    String
+  granted    Boolean
+  source     String?
+  grantedAt  DateTime @default(now())
+  revokedAt  DateTime?
+  metadata   Json?
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, type])
+}
+
+model Program {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions    ProgramVersion[]
+  enrollments ProgramEnrollment[]
+}
+
+model ProgramVersion {
+  id          String        @id @default(uuid())
+  programId   String
+  version     String
+  locale      String
+  status      ContentStatus @default(DRAFT)
+  content     Json
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, version, locale])
+}
+
+model ProgramEnrollment {
+  id               String                  @id @default(uuid())
+  memberId         String
+  programId        String
+  programVersionId String?
+  status           ProgramEnrollmentStatus @default(PENDING)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  currentDay       Int                     @default(0)
+  metadata         Json?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  member  Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id])
+
+  @@index([memberId, status])
+}
+
+model DailyCheckin {
+  id         String   @id @default(uuid())
+  memberId   String
+  localDate  DateTime @db.Date
+  energy     Int?
+  sleep      Int?
+  movement   Int?
+  hydration  Int?
+  wellbeing  Int?
+  note       String?
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, localDate])
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  slug        String      @unique
+  name        String
+  type        ProductType
+  description String?
+  active      Boolean     @default(false)
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  prices      Price[]
+  orderItems  OrderItem[]
+}
+
+model Price {
+  id        String   @id @default(uuid())
+  productId String
+  currency  String   @db.VarChar(3)
+  amount    Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id         String   @id @default(uuid())
+  memberId   String?
+  status     String
+  currency   String   @db.VarChar(3)
+  total      Int
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  member Member? @relation(fields: [memberId], references: [id])
+  items  OrderItem[]
+}
+
+model OrderItem {
+  id        String @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int    @default(1)
+  unitPrice Int
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model Subscription {
+  id           String   @id @default(uuid())
+  memberId     String
+  provider     String?
+  externalId   String?  @unique
+  plan         String
+  status       String
+  currentStart DateTime?
+  currentEnd   DateTime?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid())
+  actorType  String
+  actorId    String?
+  action     String
+  resource   String
+  resourceId String?
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([resource, resourceId])
+}

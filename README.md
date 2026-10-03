@@ -8,7 +8,7 @@ This repository owns:
 
 - members and identities
 - programs and enrollments
-- Corpo Forte 40+ modules and progress
+- Corpo Forte modules and progress
 - versioned runtime content
 - Check-up Corpo Forte answers/results
 - exercises, quizzes, commitments and trackers
@@ -64,10 +64,10 @@ Each published unit should support:
 
 ```json
 {
-  "content_id": "CF40-S01-v1.0",
-  "product_id": "corpo-forte-40",
+  "content_id": "CF-S01-v1.2",
+  "product_id": "corpo-forte",
   "module_id": "S01",
-  "version": "1.0",
+  "version": "1.2",
   "status": "published",
   "locale": "pt-BR",
   "title": "Mais do que um número",
