@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, type Member } from '@prisma/client';
+import { EntitlementsService } from '../access/entitlements.service';
 import { PrismaService } from '../database/prisma.service';
 import {
   RecordCheckinDto,
@@ -13,7 +14,10 @@ import {
 
 @Injectable()
 export class InternalLiaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly entitlements: EntitlementsService,
+  ) {}
 
   async resolveMember(input: ResolveMemberDto): Promise<Member> {
     if (!input.phoneE164 && !input.email) {
@@ -134,6 +138,7 @@ export class InternalLiaService {
       memberId: member.id,
       displayName: member.displayName ?? undefined,
       locale: member.locale,
+      entitlements: await this.entitlements.activeKeys(member.id),
       activePrograms: member.enrollments.map((enrollment) => ({
         programId: enrollment.program.slug,
         currentModuleId: asString(asRecord(enrollment.metadata).moduleId),
