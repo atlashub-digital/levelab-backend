@@ -6,6 +6,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    volumes:
+      # Full premium PDFs live on the host only (never in Git): /opt/levelab/content
+      - ${CONTENT_HOST_DIR:-../content}:/content:ro
     ports:
       - "127.0.0.1:${PORT:-8080}:${PORT:-8080}"
     healthcheck:

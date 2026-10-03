@@ -42,16 +42,18 @@ enum ContentStatus {
 }
 
 model Member {
-  id            String        @id @default(uuid())
-  email         String?       @unique
-  phoneE164     String?       @unique
-  displayName   String?
-  locale        String        @default("pt-BR")
-  country       String?       @db.VarChar(2)
-  timezone      String?
-  status        MemberStatus  @default(LEAD)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id          String       @id @default(uuid())
+  /// Supabase Auth user id (auth.users.id) once the member has signed in.
+  authUserId  String?      @unique
+  email       String?      @unique
+  phoneE164   String?      @unique
+  displayName String?
+  locale      String       @default("pt-BR")
+  country     String?      @db.VarChar(2)
+  timezone    String?
+  status      MemberStatus @default(LEAD)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   profile       WellnessProfile?
   consents      Consent[]
@@ -59,11 +61,12 @@ model Member {
   checkins      DailyCheckin[]
   subscriptions Subscription[]
   orders        Order[]
+  entitlements  Entitlement[]
 }
 
 model WellnessProfile {
-  id                    String   @id @default(uuid())
-  memberId              String   @unique
+  id                    String    @id @default(uuid())
+  memberId              String    @unique
   primaryGoal           String?
   routineSummary        String?
   movementLevel         String?
@@ -72,22 +75,22 @@ model WellnessProfile {
   barriers              Json?
   communicationPrefs    Json?
   onboardingCompletedAt DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
 }
 
 model Consent {
-  id         String   @id @default(uuid())
-  memberId   String
-  type       String
-  version    String
-  granted    Boolean
-  source     String?
-  grantedAt  DateTime @default(now())
-  revokedAt  DateTime?
-  metadata   Json?
+  id        String    @id @default(uuid())
+  memberId  String
+  type      String
+  version   String
+  granted   Boolean
+  source    String?
+  grantedAt DateTime  @default(now())
+  revokedAt DateTime?
+  metadata  Json?
 
   member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
@@ -142,17 +145,17 @@ model ProgramEnrollment {
 }
 
 model DailyCheckin {
-  id         String   @id @default(uuid())
-  memberId   String
-  localDate  DateTime @db.Date
-  energy     Int?
-  sleep      Int?
-  movement   Int?
-  hydration  Int?
-  wellbeing  Int?
-  note       String?
-  payload    Json?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  memberId  String
+  localDate DateTime @db.Date
+  energy    Int?
+  sleep     Int?
+  movement  Int?
+  hydration Int?
+  wellbeing Int?
+  note      String?
+  payload   Json?
+  createdAt DateTime @default(now())
 
   member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
@@ -170,8 +173,8 @@ model Product {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  prices      Price[]
-  orderItems  OrderItem[]
+  prices     Price[]
+  orderItems OrderItem[]
 }
 
 model Price {
@@ -186,16 +189,16 @@ model Price {
 }
 
 model Order {
-  id         String   @id @default(uuid())
-  memberId   String?
-  status     String
-  currency   String   @db.VarChar(3)
-  total      Int
-  metadata   Json?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid())
+  memberId  String?
+  status    String
+  currency  String   @db.VarChar(3)
+  total     Int
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  member Member? @relation(fields: [memberId], references: [id])
+  member Member?     @relation(fields: [memberId], references: [id])
   items  OrderItem[]
 }
 
@@ -211,17 +214,17 @@ model OrderItem {
 }
 
 model Subscription {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   memberId     String
   provider     String?
-  externalId   String?  @unique
+  externalId   String?   @unique
   plan         String
   status       String
   currentStart DateTime?
   currentEnd   DateTime?
   metadata     Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
 }
@@ -237,4 +240,24 @@ model AuditEvent {
   createdAt  DateTime @default(now())
 
   @@index([resource, resourceId])
+}
+
+/// What a member may access. Keys: "content:<product>", "levelab-plus",
+/// "premium" (premium implies every other key). Granted manually for now;
+/// later by payment webhooks (source + sourceRef identify the purchase).
+model Entitlement {
+  id        String    @id @default(uuid())
+  memberId  String
+  key       String
+  source    String
+  sourceRef String?
+  startsAt  DateTime  @default(now())
+  endsAt    DateTime?
+  revokedAt DateTime?
+  note      String?
+  createdAt DateTime  @default(now())
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, key])
 }
