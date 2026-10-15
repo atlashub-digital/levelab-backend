@@ -261,3 +261,10 @@ model Entitlement {
 
   @@index([memberId, key])
 }
+
+/// Signed ARO notifications only. No payer/payment data; primary key deduplicates retries.
+model AroWebhookEvent {
+  id         String   @id
+  type       String
+  receivedAt DateTime @default(now())
+}

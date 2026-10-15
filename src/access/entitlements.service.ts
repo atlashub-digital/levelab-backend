@@ -1,28 +1,33 @@
 import { Injectable } from '@nestjs/common';
+import { AroAccessService } from '../aro/aro-access.service';
 import { PrismaService } from '../database/prisma.service';
 import { EntitlementKey, expandKeys } from './access.catalog';
 
 @Injectable()
 export class EntitlementsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly aro: AroAccessService) {}
 
   /** Active, expanded keys for a member (premium expands to all keys). */
-  async activeKeys(memberId: string): Promise<EntitlementKey[]> {
+  async activeKeys(memberId: string, verifiedEmail?: string | null): Promise<EntitlementKey[]> {
     const now = new Date();
     const rows = await this.prisma.entitlement.findMany({
       where: {
         memberId,
+        ...(this.aro.enabled ? { source: { in: ['manual', 'admin'] } } : {}),
         revokedAt: null,
         startsAt: { lte: now },
         OR: [{ endsAt: null }, { endsAt: { gt: now } }],
       },
       select: { key: true },
     });
-    return expandKeys(rows.map((row) => row.key));
+    const localKeys = rows.map((row) => row.key);
+    if (!this.aro.enabled) return expandKeys(localKeys);
+    const aroKeys = await this.aro.activeKeys(verifiedEmail);
+    return expandKeys([...localKeys, ...aroKeys]);
   }
 
-  async hasKey(memberId: string, key: EntitlementKey): Promise<boolean> {
-    return (await this.activeKeys(memberId)).includes(key);
+  async hasKey(memberId: string, key: EntitlementKey, verifiedEmail?: string | null): Promise<boolean> {
+    return (await this.activeKeys(memberId, verifiedEmail)).includes(key);
   }
 
   grant(input: {

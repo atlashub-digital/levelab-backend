@@ -91,7 +91,7 @@ export class AdminController {
     const created = await this.entitlements.grant({
       memberId: member.id,
       grants,
-      source: body.source ?? 'manual',
+      source: body.source === 'admin' ? 'admin' : 'manual',
       sourceRef: body.sourceRef ?? body.offer,
       note: body.note,
     });
@@ -140,7 +140,7 @@ export class AdminController {
         createdAt: member.createdAt,
       },
       entitlements: member.entitlements,
-      activeKeys: await this.entitlements.activeKeys(member.id),
+      activeKeys: await this.entitlements.activeKeys(member.id, member.email),
     };
   }
 }
