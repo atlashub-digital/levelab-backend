@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import { SupabaseJwtGuard, type AuthedRequest } from '../auth/supabase-jwt.guard';
 import { CONTENT_ASSETS, getAsset } from './access.catalog';
 import { EntitlementsService } from './entitlements.service';
+import { AroEntitlementsService, RIGHTS } from './aro-entitlements.service';
 import { MembersService } from './members.service';
 
 /** Signed-in member area (Supabase JWT). */
@@ -25,13 +26,16 @@ export class MeController {
   constructor(
     private readonly members: MembersService,
     private readonly entitlements: EntitlementsService,
+    private readonly aro: AroEntitlementsService,
     private readonly config: ConfigService,
   ) {}
 
   @Get()
   async me(@Req() req: AuthedRequest) {
     const member = await this.members.forAuthUser(req.authUser);
-    const keys = await this.entitlements.activeKeys(member.id);
+    const keys = this.aro.enabled
+      ? [...(await this.aro.resolve(member.email))]
+      : await this.entitlements.activeKeys(member.id);
     return {
       member: {
         id: member.id,
@@ -45,10 +49,14 @@ export class MeController {
   @Get('library')
   async library(@Req() req: AuthedRequest) {
     const member = await this.members.forAuthUser(req.authUser);
-    const keys = await this.entitlements.activeKeys(member.id);
+    const keys = this.aro.enabled
+      ? [...(await this.aro.resolve(member.email))]
+      : await this.entitlements.activeKeys(member.id);
     return CONTENT_ASSETS.map(({ file: _file, ...asset }) => ({
       ...asset,
-      hasAccess: keys.includes(asset.requires),
+      hasAccess: this.aro.enabled
+        ? keys.includes(RIGHTS[asset.id])
+        : keys.includes(asset.requires),
     }));
   }
 
@@ -63,7 +71,9 @@ export class MeController {
     if (!asset) throw new NotFoundException('Content not found.');
 
     const member = await this.members.forAuthUser(req.authUser);
-    if (!(await this.entitlements.hasKey(member.id, asset.requires))) {
+    if (!(this.aro.enabled
+      ? await this.aro.hasAsset(member.email,asset.id)
+      : await this.entitlements.hasKey(member.id, asset.requires))) {
       throw new ForbiddenException({ code: 'NO_ACCESS', requires: asset.requires });
     }
 
