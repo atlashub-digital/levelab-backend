@@ -49,11 +49,13 @@ export class MeController {
   @Get('library')
   async library(@Req() req: AuthedRequest) {
     const member = await this.members.forAuthUser(req.authUser);
-    const keys = await this.entitlements.activeKeys(member.id);
+    const keys = this.aro.enabled
+      ? [...(await this.aro.resolve(member.email))]
+      : await this.entitlements.activeKeys(member.id);
     return CONTENT_ASSETS.map(({ file: _file, ...asset }) => ({
       ...asset,
       hasAccess: this.aro.enabled
-        ? keys.includesRIGHTS[asset.id]
+        ? keys.includes(RIGHTS[asset.id])
         : keys.includes(asset.requires),
     }));
   }
