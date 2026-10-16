@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CONTENT_ASSETS } from './access.catalog';
 
@@ -11,7 +11,8 @@ export class AroEntitlementsService {
     return this.config.get<string>('ARO_ENTITLEMENTS_ENABLED') === 'true';
   }
 
-  async resolve(email: string): Promise<Set<string>> {
+  async resolve(email: string | null): Promise<Set<string>> {
+    if (!email || !email.trim()) throw new ForbiddenException('Verified email is required to resolve ARO access');
     const base=this.config.get<string>('ARO_API_URL');
     const project=this.config.get<string>('ARO_PROJECT_SLUG');
     const key=this.config.get<string>('ARO_SERVER_KEY');
@@ -34,11 +35,11 @@ export class AroEntitlementsService {
     return valid;
   }
 
-  async hasAsset(email:string,assetId:string):Promise<boolean>{
+  async hasAsset(email:string|null,assetId:string):Promise<boolean>{
     const key=RIGHTS[assetId];if(!key)return false;
     return (await this.resolve(email)).has(key);
   }
-  async library(email:string):Promise<Array<{id:string;hasAccess:boolean}>>{
+  async library(email:string|null):Promise<Array<{id:string;hasAccess:boolean}>>{
     const rights=await this.resolve(email);
     return CONTENT_ASSETS.map(asset=>({id:asset.id,hasAccess:rights.has(RIGHTS[asset.id])}));
   }
