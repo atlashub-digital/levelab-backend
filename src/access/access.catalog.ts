@@ -66,6 +66,17 @@ export const CONTENT_ASSETS: ContentAsset[] = [
   },
 ];
 
+/** ARO owns purchase rights separately for each delivered document.
+ * Do not collapse the book and workbook into one key: both must be ACTIVE.
+ * Local keys remain available only for verified manual/admin access.
+ */
+export const ARO_RIGHT_BY_ASSET: Record<string, string> = {
+  'corpo-forte-guia': 'levelab:reader:corpo-forte',
+  'corpo-forte-workbook': 'levelab:reader:corpo-forte-workbook',
+  'forca-na-caneta': 'levelab:reader:forca-na-caneta',
+  'tomei-mounjaro': 'levelab:reader:tomei-mounjaro',
+};
+
 export function getAsset(id: string): ContentAsset | undefined {
   return CONTENT_ASSETS.find((asset) => asset.id === id);
 }
