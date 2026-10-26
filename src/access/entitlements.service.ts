@@ -20,10 +20,12 @@ export class EntitlementsService {
       },
       select: { key: true },
     });
-    const localKeys = rows.map((row) => row.key);
-    if (!this.aro.enabled) return expandKeys(localKeys);
-    const aroKeys = await this.aro.activeKeys(verifiedEmail);
-    return expandKeys([...localKeys, ...aroKeys]);
+    // Local keys authorize explicit complimentary/admin access only when ARO
+    // is enabled. Paid ARO rights are checked per asset by MeController so
+    // separate book/workbook entitlements cannot accidentally unlock both.
+    // The verified email is used exclusively by AroAccessService.
+    void verifiedEmail;
+    return expandKeys(rows.map((row) => row.key));
   }
 
   async hasKey(memberId: string, key: EntitlementKey, verifiedEmail?: string | null): Promise<boolean> {
