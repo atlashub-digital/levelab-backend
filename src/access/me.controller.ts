@@ -31,7 +31,7 @@ export class MeController {
   @Get()
   async me(@Req() req: AuthedRequest) {
     const member = await this.members.forAuthUser(req.authUser);
-    const keys = await this.entitlements.activeKeys(member.id);
+    const keys = await this.entitlements.activeKeys(member.id, member.email);
     return {
       member: {
         id: member.id,
@@ -45,7 +45,7 @@ export class MeController {
   @Get('library')
   async library(@Req() req: AuthedRequest) {
     const member = await this.members.forAuthUser(req.authUser);
-    const keys = await this.entitlements.activeKeys(member.id);
+    const keys = await this.entitlements.activeKeys(member.id, member.email);
     return CONTENT_ASSETS.map(({ file: _file, ...asset }) => ({
       ...asset,
       hasAccess: keys.includes(asset.requires),
@@ -63,7 +63,7 @@ export class MeController {
     if (!asset) throw new NotFoundException('Content not found.');
 
     const member = await this.members.forAuthUser(req.authUser);
-    if (!(await this.entitlements.hasKey(member.id, asset.requires))) {
+    if (!(await this.entitlements.hasKey(member.id, asset.requires, member.email))) {
       throw new ForbiddenException({ code: 'NO_ACCESS', requires: asset.requires });
     }
 

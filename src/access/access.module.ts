@@ -1,4 +1,6 @@
 import { Global, Module } from '@nestjs/common';
+import { AroAccessService } from '../aro/aro-access.service';
+import { AroWebhookController } from '../aro/aro-webhook.controller';
 import { AdminGuard } from '../auth/admin.guard';
 import { SupabaseJwtGuard } from '../auth/supabase-jwt.guard';
 import { AdminController } from './admin.controller';
@@ -9,8 +11,8 @@ import { MembersService } from './members.service';
 
 @Global()
 @Module({
-  controllers: [MeController, CatalogController, AdminController],
-  providers: [MembersService, EntitlementsService, SupabaseJwtGuard, AdminGuard],
+  controllers: [MeController, CatalogController, AdminController, AroWebhookController],
+  providers: [MembersService, EntitlementsService, SupabaseJwtGuard, AdminGuard, AroAccessService],
   exports: [EntitlementsService, MembersService],
 })
 export class AccessModule {}

@@ -15,5 +15,6 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run prisma:generate
+      - run: npm run test:aro
       - run: npm run typecheck
       - run: npm run build
