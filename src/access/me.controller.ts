@@ -53,11 +53,13 @@ export class MeController {
     const aroRights = this.aro.enabled
       ? new Set(await this.aro.activeKeys(member.email))
       : null;
-    return CONTENT_ASSETS.map(({ file: _file, ...asset }) => ({
-      ...asset,
-      hasAccess: localKeys.includes(asset.requires) ||
-        Boolean(aroRights?.has(ARO_RIGHT_BY_ASSET[asset.id])),
-    }));
+    return CONTENT_ASSETS.filter((asset) => asset.published !== false).map(
+      ({ file: _file, published: _published, ...asset }) => ({
+        ...asset,
+        hasAccess: localKeys.includes(asset.requires) ||
+          Boolean(aroRights?.has(ARO_RIGHT_BY_ASSET[asset.id])),
+      }),
+    );
   }
 
   /** Streams the full PDF only to members holding the asset's key. */
