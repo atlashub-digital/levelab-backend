@@ -7,6 +7,7 @@
 export const ENTITLEMENT_KEYS = [
   'content:corpo-forte',
   'content:forca-na-caneta',
+  'content:tomei-mounjaro',
   'levelab-plus',
   'premium',
 ] as const;
@@ -74,8 +75,10 @@ export function getAsset(id: string): ContentAsset | undefined {
 export type OfferGrant = { key: EntitlementKey; days?: number };
 
 /**
- * Sellable offers -> what they grant. A guide is owned for good and includes
- * 30 days of LeveLab+ (LIA) — decision of 2026-10-03.
+ * Legacy paid offers are retained for prior customers. New ARO V2 offers do
+ * not include LeveLab+ automatically; the ARO entitlement resolver is the sole
+ * authority when enabled. New medical editorial assets stay pending until the
+ * release PDF and reader manifest are available.
  */
 export const OFFERS: Record<string, { title: string; grants: OfferGrant[] }> = {
   'guia-corpo-forte': {
@@ -85,6 +88,14 @@ export const OFFERS: Record<string, { title: string; grants: OfferGrant[] }> = {
   'guia-forca-na-caneta': {
     title: 'Força na Caneta + LeveLab+',
     grants: [{ key: 'content:forca-na-caneta' }, { key: 'levelab-plus', days: 30 }],
+  },
+  'levelab-corpo-forte-br': {
+    title: 'Corpo Forte — Além da Balança + workbook (V2)',
+    grants: [{ key: 'content:corpo-forte' }],
+  },
+  'levelab-tomei-mounjaro-br': {
+    title: 'Tomei Mounjaro. E Agora? (V2, pending asset release)',
+    grants: [{ key: 'content:tomei-mounjaro' }],
   },
   'levelab-premium': {
     title: 'LeveLab Premium (acesso completo)',
