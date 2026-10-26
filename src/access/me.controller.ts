@@ -14,7 +14,8 @@ import type { Response } from 'express';
 import { createReadStream, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { SupabaseJwtGuard, type AuthedRequest } from '../auth/supabase-jwt.guard';
-import { CONTENT_ASSETS, getAsset } from './access.catalog';
+import { ARO_RIGHT_BY_ASSET, CONTENT_ASSETS, getAsset } from './access.catalog';
+import { AroAccessService } from '../aro/aro-access.service';
 import { EntitlementsService } from './entitlements.service';
 import { MembersService } from './members.service';
 
@@ -25,13 +26,16 @@ export class MeController {
   constructor(
     private readonly members: MembersService,
     private readonly entitlements: EntitlementsService,
+    private readonly aro: AroAccessService,
     private readonly config: ConfigService,
   ) {}
 
   @Get()
   async me(@Req() req: AuthedRequest) {
     const member = await this.members.forAuthUser(req.authUser);
-    const keys = await this.entitlements.activeKeys(member.id, member.email);
+    const localKeys = await this.entitlements.activeKeys(member.id, member.email);
+    const aroKeys = this.aro.enabled ? await this.aro.activeKeys(member.email) : [];
+    const keys = [...new Set<string>([...localKeys, ...aroKeys])];
     return {
       member: {
         id: member.id,
@@ -45,10 +49,14 @@ export class MeController {
   @Get('library')
   async library(@Req() req: AuthedRequest) {
     const member = await this.members.forAuthUser(req.authUser);
-    const keys = await this.entitlements.activeKeys(member.id, member.email);
+    const localKeys = await this.entitlements.activeKeys(member.id, member.email);
+    const aroRights = this.aro.enabled
+      ? new Set(await this.aro.activeKeys(member.email))
+      : null;
     return CONTENT_ASSETS.map(({ file: _file, ...asset }) => ({
       ...asset,
-      hasAccess: keys.includes(asset.requires),
+      hasAccess: localKeys.includes(asset.requires) ||
+        Boolean(aroRights?.has(ARO_RIGHT_BY_ASSET[asset.id])),
     }));
   }
 
@@ -63,8 +71,15 @@ export class MeController {
     if (!asset) throw new NotFoundException('Content not found.');
 
     const member = await this.members.forAuthUser(req.authUser);
-    if (!(await this.entitlements.hasKey(member.id, asset.requires, member.email))) {
-      throw new ForbiddenException({ code: 'NO_ACCESS', requires: asset.requires });
+    const localAccess = await this.entitlements.hasKey(member.id, asset.requires, member.email);
+    // Per-document ARO verification is authoritative for paid rights. The
+    // workbook cannot be opened merely by owning the guide entitlement.
+    const aroRights = this.aro.enabled
+      ? new Set(await this.aro.activeKeys(member.email))
+      : null;
+    const paidAccess = aroRights?.has(ARO_RIGHT_BY_ASSET[asset.id]) ?? false;
+    if (!localAccess && !paidAccess) {
+      throw new ForbiddenException({ code: 'NO_ACCESS' });
     }
 
     const path = join(this.config.get<string>('CONTENT_DIR') ?? '/content', asset.file);
