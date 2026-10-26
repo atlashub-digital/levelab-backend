@@ -6,6 +6,7 @@ import {
   Param,
   Req,
   Res,
+  ServiceUnavailableException,
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { createReadStream, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { SupabaseJwtGuard, type AuthedRequest } from '../auth/supabase-jwt.guard';
 import { CONTENT_ASSETS, getAsset } from './access.catalog';
+import { AroService } from '../aro/aro.service';
 import { EntitlementsService } from './entitlements.service';
 import { MembersService } from './members.service';
 
@@ -25,6 +27,7 @@ export class MeController {
   constructor(
     private readonly members: MembersService,
     private readonly entitlements: EntitlementsService,
+    private readonly aro: AroService,
     private readonly config: ConfigService,
   ) {}
 
@@ -45,10 +48,12 @@ export class MeController {
   @Get('library')
   async library(@Req() req: AuthedRequest) {
     const member = await this.members.forAuthUser(req.authUser);
-    const keys = await this.entitlements.activeKeys(member.id);
+    // ARO is the authority for reader access; fail closed when unreachable.
+    const aro = await this.aro.authoritativeReaderKeys(member.email ?? '');
+    if (aro === null) throw new ServiceUnavailableException({ code: 'ARO_UNAVAILABLE' });
     return CONTENT_ASSETS.map(({ file: _file, ...asset }) => ({
       ...asset,
-      hasAccess: keys.includes(asset.requires),
+      hasAccess: aro.has(asset.requires),
     }));
   }
 
@@ -63,7 +68,10 @@ export class MeController {
     if (!asset) throw new NotFoundException('Content not found.');
 
     const member = await this.members.forAuthUser(req.authUser);
-    if (!(await this.entitlements.hasKey(member.id, asset.requires))) {
+    // ARO authoritative check, fail closed on ARO unavailability.
+    const aro = await this.aro.authoritativeReaderKeys(member.email ?? '');
+    if (aro === null) throw new ServiceUnavailableException({ code: 'ARO_UNAVAILABLE' });
+    if (!aro.has(asset.requires)) {
       throw new ForbiddenException({ code: 'NO_ACCESS', requires: asset.requires });
     }
 

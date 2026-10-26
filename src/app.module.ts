@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AroModule } from './aro/aro.module';
 import { AccessModule } from './access/access.module';
 import { LeadsModule } from './leads/leads.module';
 import { DatabaseModule } from './database/database.module';
@@ -13,6 +14,7 @@ import { InternalLiaModule } from './internal-lia/internal-lia.module';
       cache: true,
     }),
     DatabaseModule,
+    AroModule,
     AccessModule,
     LeadsModule,
     InternalLiaModule,
